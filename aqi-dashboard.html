@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IoT Air Quality Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; padding: 32px 20px; background: #090d16; color: #f1f5f9; }
+    .wrap { max-width: 980px; margin: auto; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    h1 { margin: 0; font-size: 22px; font-weight: 600; }
+    .sub { color: #64748b; font-size: 13px; margin-top: 4px; }
+    button { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    button:hover { background: #334155; }
+    .alert { background: rgba(220, 38, 38, 0.15); border: 1px solid #ef4444; color: #fca5a5; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; display: none; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: #111827; border: 1px solid #1f2937; padding: 20px; border-radius: 10px; }
+    .label { color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .value { font-size: 32px; font-weight: 700; margin-top: 8px; }
+    .status-good { color: #4ade80; }
+    .status-mod { color: #facc15; }
+    .status-bad { color: #f87171; }
+    .panel { background: #111827; border: 1px solid #1f2937; padding: 20px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>IoT Air Quality Telemetry</h1>
+        <div class="sub" id="lastSync">Waiting for ThingSpeak cloud feed...</div>
+      </div>
+      <button onclick="downloadCSV()">Download CSV Log</button>
+    </header>
+
+    <div id="alertBox" class="alert">HAZARDOUS AIR QUALITY DETECTED — AQI Exceeded 150</div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">Live AQI</div>
+        <div class="value" id="aqiVal">--</div>
+      </div>
+      <div class="card">
+        <div class="label">Air Status</div>
+        <div class="value" id="statusVal" style="font-size: 24px; padding-top: 6px;">--</div>
+      </div>
+      <div class="card">
+        <div class="label">Temperature</div>
+        <div class="value" id="tempVal">--</div>
+      </div>
+      <div class="card">
+        <div class="label">Humidity</div>
+        <div class="value" id="humVal">--</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <canvas id="telemetryChart" height="110"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const CHANNEL_ID = "3593999";     // <-- Replace with your Channel ID
+    const READ_API_KEY = "VQ6SI5KFMQBLRW8F"; // <-- Replace with your Read API Key (or leave "" if public)
+
+    let latestFeeds = [];
+
+    const ctx = document.getElementById("telemetryChart").getContext("2d");
+    const chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          { label: "AQI", data: [], borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.1)", tension: 0.3, fill: true },
+          { label: "Temp (°C)", data: [], borderColor: "#f59e0b", tension: 0.3 },
+          { label: "Humidity (%)", data: [], borderColor: "#34d399", tension: 0.3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#cbd5e1" } } },
+        scales: {
+          x: { ticks: { color: "#64748b" }, grid: { color: "#1e293b" } },
+          y: { ticks: { color: "#64748b" }, grid: { color: "#1e293b" } }
+        }
+      }
+    });
+
+    async function syncThingSpeak() {
+      const keyParam = READ_API_KEY ? `&api_key=${READ_API_KEY}` : "";
+      const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?results=25${keyParam}`;
+
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        latestFeeds = json.feeds || [];
+        if (!latestFeeds.length) return;
+
+        const last = latestFeeds[latestFeeds.length - 1];
+        const aqi = parseInt(last.field1 || 0, 10);
+        const temp = parseFloat(last.field2 || 0).toFixed(1);
+        const hum = parseFloat(last.field3 || 0).toFixed(1);
+
+        document.getElementById("aqiVal").textContent = aqi;
+        document.getElementById("tempVal").textContent = `${temp}°C`;
+        document.getElementById("humVal").textContent = `${hum}%`;
+        document.getElementById("lastSync").textContent = `Last updated: ${new Date(last.created_at).toLocaleTimeString()}`;
+
+        const statusEl = document.getElementById("statusVal");
+        const alertBox = document.getElementById("alertBox");
+
+        if (aqi > 150) {
+          statusEl.textContent = "Hazardous";
+          statusEl.className = "value status-bad";
+          alertBox.style.display = "block";
+        } else if (aqi > 100) {
+          statusEl.textContent = "Moderate";
+          statusEl.className = "value status-mod";
+          alertBox.style.display = "none";
+        } else {
+          statusEl.textContent = "Good";
+          statusEl.className = "value status-good";
+          alertBox.style.display = "none";
+        }
+
+        chart.data.labels = latestFeeds.map(f => new Date(f.created_at).toLocaleTimeString());
+        chart.data.datasets[0].data = latestFeeds.map(f => Number(f.field1));
+        chart.data.datasets[1].data = latestFeeds.map(f => Number(f.field2));
+        chart.data.datasets[2].data = latestFeeds.map(f => Number(f.field3));
+        chart.update("none");
+      } catch (err) {
+        document.getElementById("lastSync").textContent = "Error fetching ThingSpeak data.";
+      }
+    }
+
+    function downloadCSV() {
+      if (!latestFeeds.length) return;
+      const rows = ["Timestamp,AQI,Temperature_C,Humidity_Pct"];
+      latestFeeds.forEach(f => rows.push(`${f.created_at},${f.field1},${f.field2},${f.field3}`));
+      const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "iot-aqi-telemetry.csv";
+      a.click();
+    }
+
+    syncThingSpeak();
+    setInterval(syncThingSpeak, 15000);
+  </script>
+</body>
+</html>

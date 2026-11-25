@@ -3,487 +3,529 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AeroSense IoT — Hybrid Edge & Cloud Air Quality Monitoring</title>
+  <title>Pune Air Quality Cloud Analytics — ThingSpeak + CAMS Live</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
-      --surface-alt: #f1f5f9;
+      --subtle: #f1f5f9;
       --border: #e2e8f0;
       --text: #0f172a;
       --muted: #64748b;
-      --primary: #2563eb;
-      --primary-light: #eff6ff;
+      --accent: #0f172a;
       --good: #16a34a;
       --good-bg: #f0fdf4;
       --mod: #d97706;
       --mod-bg: #fffbeb;
+      --sens: #ea580c;
+      --sens-bg: #fff7ed;
       --bad: #dc2626;
       --bad-bg: #fef2f2;
     }
-    * { box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-    body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.5; }
 
-    /* Top Header & Config Bar */
-    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 50; }
+    * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+    /* Header */
+    .header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 32px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 30;
+    }
     .brand { display: flex; align-items: center; gap: 12px; }
-    .brand-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 16px; }
-    .brand h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
-    .brand p { margin: 0; font-size: 12px; color: var(--muted); }
+    .logo {
+      width: 34px; height: 34px; border-radius: 8px; background: var(--accent); color: #fff;
+      display: grid; place-items: center; font-weight: 700; font-size: 15px;
+    }
+    .brand h1 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+    .brand span { font-size: 12px; color: var(--muted); display: block; }
 
-    .conn-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-    .conn-bar input, .conn-bar select { background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); padding: 7px 11px; border-radius: 6px; font-size: 12.5px; outline: none; }
-    .conn-bar input:focus, .conn-bar select:focus { border-color: var(--primary); background: #fff; }
-    .btn { background: var(--primary); color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: 0.15s; }
-    .btn:hover { background: #1d4ed8; }
-    .btn-outline { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
-    .btn-outline:hover { background: var(--surface-alt); }
+    .conn-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .conn-controls input, .conn-controls select {
+      background: var(--subtle); border: 1px solid var(--border); color: var(--text);
+      padding: 7px 11px; border-radius: 7px; font-size: 12.5px; outline: none;
+    }
+    .conn-controls input:focus, .conn-controls select:focus { border-color: var(--accent); background: #fff; }
+    .btn {
+      background: var(--accent); color: #fff; border: none; padding: 7px 14px;
+      border-radius: 7px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-light {
+      background: var(--surface); color: var(--text); border: 1px solid var(--border);
+      padding: 7px 13px; border-radius: 7px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    }
+    .btn-light:hover { background: var(--subtle); }
 
-    /* Navigation Tabs */
-    .nav-tabs { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; display: flex; gap: 24px; overflow-x: auto; }
-    .tab { padding: 12px 4px; font-size: 13.5px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
-    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    /* Status Strip */
+    .status-bar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 9px 32px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+      gap: 12px; font-size: 12.5px; color: var(--muted);
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+      border-radius: 999px; font-weight: 600; font-size: 12px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
-    /* Main Layout */
-    .container { max-width: 1260px; margin: 24px auto; padding: 0 24px; }
-    .page { display: none; }
-    .page.active { display: block; }
+    /* Container */
+    .container { max-width: 1260px; margin: 0 auto; padding: 24px 32px 48px; }
 
-    /* Status & Alert Banners */
-    .status-strip { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin-bottom: 20px; gap: 12px; font-size: 13px; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-    .alert-banner { background: var(--bad-bg); border: 1px solid #fecaca; color: var(--bad); padding: 14px 18px; border-radius: 10px; margin-bottom: 20px; display: none; font-weight: 600; font-size: 13.5px; align-items: center; justify-content: space-between; }
+    /* Alert Banner */
+    .alert {
+      background: var(--bad-bg); border: 1px solid #fecaca; color: var(--bad);
+      padding: 12px 18px; border-radius: 10px; margin-bottom: 20px;
+      display: none; justify-content: space-between; align-items: center; font-size: 13.5px; font-weight: 600;
+    }
 
-    /* Grids & Cards */
-    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 20px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 20px; margin-bottom: 20px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 1px 2px rgba(15,23,42,0.03); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-    .card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
-    .big-num { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0; }
-    .sub-text { font-size: 12.5px; color: var(--muted); }
+    /* Top Hero + KPI Row */
+    .hero-grid {
+      display: grid; grid-template-columns: 340px 1fr; gap: 20px; margin-bottom: 20px;
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px;
+    }
+    .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+    .card-title { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
 
-    /* AQI Gauge Bar */
-    .gauge-track { height: 10px; background: linear-gradient(90deg, #22c55e 0%, #eab308 30%, #f97316 60%, #ef4444 100%); border-radius: 999px; position: relative; margin: 14px 0 6px; }
-    .gauge-marker { width: 16px; height: 16px; background: #fff; border: 3px solid var(--text); border-radius: 50%; position: absolute; top: -3px; transform: translateX(-50%); transition: left 0.4s ease; }
+    /* Gauge Wrapper */
+    .gauge-box { position: relative; width: 220px; height: 125px; margin: 8px auto 4px; }
+    .gauge-center {
+      position: absolute; bottom: 4px; left: 0; right: 0; text-align: center;
+    }
+    .gauge-num { font-size: 42px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+    .gauge-sub { font-size: 12px; font-weight: 600; margin-top: 4px; }
+    .advisory { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 12px; line-height: 1.45; }
 
-    /* Pollutant Mini Grid */
-    .pollutant-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
-    .pol-item { background: var(--surface-alt); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); }
-    .pol-item span { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
-    .pol-item strong { font-size: 15px; color: var(--text); }
+    /* KPI Sub-grid */
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    }
+    .kpi-box {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .kpi-lbl { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .kpi-val { font-size: 28px; font-weight: 800; margin: 8px 0 4px; letter-spacing: -0.02em; }
+    .kpi-foot { font-size: 12px; color: var(--muted); }
 
-    /* Hardware Interactive Simulator Box */
-    .hw-stage { background: #0f172a; color: #f8fafc; border-radius: 10px; padding: 20px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: center; }
-    .oled-screen { background: #020617; border: 3px solid #334155; border-radius: 8px; padding: 14px; font-family: 'Courier New', monospace; color: #38bdf8; box-shadow: inset 0 0 12px rgba(56,189,248,0.2); }
-    .led-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; background: #1e293b; font-size: 12.5px; font-weight: 600; }
-    .led-bulb { width: 12px; height: 12px; border-radius: 50%; background: #475569; }
-    .led-bulb.on { background: #ef4444; box-shadow: 0 0 12px #ef4444; }
+    /* CAMS Real-Time Pune Strip */
+    .cams-card { margin-bottom: 20px; }
+    .cams-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 12px;
+    }
+    .cams-item {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px;
+    }
+    .cams-item span { display: block; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+    .cams-item strong { display: block; font-size: 19px; font-weight: 700; margin-top: 4px; }
+    .cams-item small { font-size: 11px; color: var(--muted); }
 
-    /* Tables & Code Blocks */
+    /* Charts Grid */
+    .charts-grid {
+      display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px;
+    }
+    .toggles { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; font-weight: 500; }
+    .toggles label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+    /* Table */
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); }
-    th { background: var(--surface-alt); font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; }
-    pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; margin: 0; }
+    th { background: var(--subtle); color: var(--muted); font-size: 11.5px; text-transform: uppercase; font-weight: 700; }
 
-    @media (max-width: 768px) {
-      .hw-stage { grid-template-columns: 1fr; }
-      .grid-2 { grid-template-columns: 1fr; }
+    @media (max-width: 960px) {
+      .hero-grid, .charts-grid { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .header, .status-bar, .container { padding-left: 18px; padding-right: 18px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- TOP HEADER & LIVE CONNECTION SETTINGS -->
-  <div class="topbar">
+  <!-- TOP HEADER -->
+  <header class="header">
     <div class="brand">
-      <div class="brand-icon">AQ</div>
+      <div class="logo">AQ</div>
       <div>
-        <h1>AeroSense IoT — Air Quality & Telemetry Portal</h1>
-        <p>ESP32 Virtual Edge Node (Wokwi) + ThingSpeak Cloud + Open-Meteo Atmospheric Feed</p>
+        <h1>Pune Air Quality Cloud Analytics</h1>
+        <span id="channelTitle">ThingSpeak Cloud Telemetry + Live CAMS Atmospheric Feed</span>
       </div>
     </div>
 
-    <div class="conn-bar">
-      <input type="text" id="cfgChannel" placeholder="3593999" style="width: 155px;" />
-      <input type="text" id="cfgReadKey" placeholder="VQ6SI5KFMQBLRW8F
-" style="width: 160px;" />
-      <select id="citySelect" onchange="fetchRealTimeData()">
-        <option value="18.5204,73.8567,Pune">Benchmark: Pune, MH</option>
-        <option value="19.0760,72.8777,Mumbai">Benchmark: Mumbai, MH</option>
-        <option value="28.6139,77.2090,New Delhi">Benchmark: New Delhi</option>
-        <option value="12.9716,77.5946,Bengaluru">Benchmark: Bengaluru</option>
+    <div class="conn-controls">
+      <input type="text" id="inChannel" placeholder="ThingSpeak Channel ID" style="width:155px;" />
+      <input type="text" id="inKey" placeholder="Read API Key (Optional)" style="width:160px;" />
+      <select id="inZone" onchange="fetchPuneCAMS()">
+        <option value="18.5308,73.8475,Shivajinagar">Pune: Shivajinagar</option>
+        <option value="18.5913,73.7389,Hinjewadi">Pune: Hinjewadi</option>
+        <option value="18.5089,73.9259,Hadapsar">Pune: Hadapsar</option>
       </select>
-      <button class="btn" onclick="applyConfig()">Connect Cloud</button>
+      <select id="inResults" onchange="fetchThingSpeak()">
+        <option value="20">Last 20 Readings</option>
+        <option value="30" selected>Last 30 Readings</option>
+        <option value="50">Last 50 Readings</option>
+        <option value="100">Last 100 Readings</option>
+      </select>
+      <button class="btn" onclick="connectChannel()">Connect</button>
+      <button class="btn-light" onclick="exportCSV()">Export CSV</button>
     </div>
+  </header>
+
+  <!-- STATUS RIBBON -->
+  <div class="status-bar">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span id="connBadge" class="badge" style="background:var(--mod-bg); color:var(--mod);">
+        <span class="dot"></span> Enter Channel ID to Sync
+      </span>
+      <span id="camsBadge" class="badge" style="background:var(--good-bg); color:var(--good);">
+        <span class="dot"></span> Pune CAMS Live
+      </span>
+      <span id="lastUpdate">Auto-refresh: 15s (Cloud) / 60s (CAMS)</span>
+    </div>
+    <div id="channelMeta">Fields: Field 1 (AQI) • Field 2 (Temp °C) • Field 3 (Humidity %)</div>
   </div>
 
-  <!-- NAVIGATION TABS -->
-  <div class="nav-tabs">
-    <div class="tab active" onclick="switchTab('overview', this)">1. Live Telemetry & Comparison</div>
-    <div class="tab" onclick="switchTab('hardware', this)">2. Wokwi Hardware & Circuit Twin</div>
-    <div class="tab" onclick="switchTab('cloud', this)">3. Cloud API & Packet Inspector</div>
-    <div class="tab" onclick="switchTab('logs', this)">4. Analytics & Exportable Logs</div>
-  </div>
+  <main class="container">
 
-  <div class="container">
-
-    <!-- GLOBAL CONNECTION STATUS BAR -->
-    <div class="status-strip">
-      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <span id="cloudBadge" class="pill" style="background:var(--mod-bg); color:var(--mod);"><span class="dot"></span> Waiting for ThingSpeak...</span>
-        <span id="lastSyncText" class="sub-text">Polling interval: 15s (ThingSpeak REST API)</span>
-      </div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <label style="font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
-          <input type="checkbox" id="demoToggle" onchange="toggleDemoMode()" />
-          Interactive Sandbox Mode (Override Slider)
-        </label>
-        <a href="https://wokwi.com" target="_blank" class="btn btn-outline" style="text-decoration:none;">Open Wokwi IDE ↗</a>
-      </div>
+    <!-- THRESHOLD ALERT -->
+    <div id="alertBanner" class="alert">
+      <span>⚠️ AIR QUALITY ALERT: ThingSpeak Node AQI exceeded the safe threshold of 150!</span>
+      <span id="alertScore">AQI: --</span>
     </div>
 
-    <!-- THRESHOLD ALERT BANNER -->
-    <div id="alertBanner" class="alert-banner">
-      <span>⚠️ HAZARDOUS AIR QUALITY THRESHOLD EXCEEDED (AQI &gt; 150) — ESP32 GPIO 2 Red LED &amp; GPIO 4 Buzzer Triggered!</span>
-      <span id="alertValTag">AQI: --</span>
-    </div>
-
-    <!-- ========================================================= -->
-    <!-- TAB 1: OVERVIEW & LIVE TELEMETRY                          -->
-    <!-- ========================================================= -->
-    <div id="page-overview" class="page active">
-      <div class="grid-4">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Simulated Node AQI</h3>
-            <span class="pill" style="background:var(--primary-light); color:var(--primary);">GPIO 34</span>
-          </div>
-          <div class="big-num" id="kpiSimAqi">--</div>
-          <div class="gauge-track"><div class="gauge-marker" id="aqiMarker" style="left: 0%;"></div></div>
-          <div class="sub-text" id="kpiSimStatus">Category: Waiting for telemetry</div>
+    <!-- HERO GAUGE + 6 KPI CARDS -->
+    <div class="hero-grid">
+      <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="card-head">
+          <h3 class="card-title">ThingSpeak Node AQI</h3>
+          <span class="badge" id="catPill" style="background:var(--subtle); color:var(--muted);">--</span>
         </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title" id="realCityLabel">Real-Time Pune AQI</h3>
-            <span class="pill" style="background:var(--good-bg); color:var(--good);">CAMS Live</span>
+        <div class="gauge-box">
+          <canvas id="aqiGauge"></canvas>
+          <div class="gauge-center">
+            <div class="gauge-num" id="gaugeVal">--</div>
+            <div class="gauge-sub" id="gaugeDelta">Waiting for ThingSpeak</div>
           </div>
-          <div class="big-num" id="kpiRealAqi">--</div>
-          <div class="sub-text" id="kpiRealPm">PM2.5: -- µg/m³ | PM10: -- µg/m³</div>
-          <div class="sub-text" style="margin-top:4px;" id="kpiDelta">Variance vs Sim: --</div>
         </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Ambient Temperature</h3>
-            <span class="pill" style="background:var(--surface-alt); color:var(--muted);">DHT22</span>
-          </div>
-          <div class="big-num" id="kpiTemp">-- °C</div>
-          <div class="sub-text" id="kpiRealTemp">Real Outdoor Temp: -- °C</div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Relative Humidity</h3>
-            <span class="pill" style="background:var(--surface-alt); color:var(--muted);">DHT22</span>
-          </div>
-          <div class="big-num" id="kpiHum">-- %</div>
-          <div class="sub-text" id="kpiRealHum">Real Outdoor Humidity: -- %</div>
-        </div>
+        <p class="advisory" id="advisoryText">
+          Connect your ThingSpeak channel above to visualize live air quality index alongside Pune's CAMS atmospheric feed.
+        </p>
       </div>
 
-      <!-- CHARTS ROW -->
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Real-Time AQI Trend (Simulated ESP32 vs. Real City Benchmark)</h3>
-          </div>
-          <canvas id="aqiTrendChart" height="135"></canvas>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Environmental Telemetry (Temperature &amp; Humidity)</h3>
-          </div>
-          <canvas id="envTrendChart" height="135"></canvas>
-        </div>
-      </div>
-
-      <!-- REAL-TIME ATMOSPHERIC POLLUTANTS BREAKDOWN -->
       <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Live Regional Atmospheric Composition (Open-Meteo CAMS Satellite &amp; Reanalysis Model)</h3>
-          <span class="sub-text" id="aqTimestamp">Updated hourly</span>
+        <div class="card-head">
+          <h3 class="card-title">ThingSpeak Telemetry &amp; Statistical Metrics</h3>
+          <span style="font-size:12px; color:var(--muted);" id="sampleCount">0 samples</span>
         </div>
-        <div class="pollutant-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
-          <div class="pol-item"><span>PM2.5 Fine Particulate</span><strong id="polPm25">-- µg/m³</strong></div>
-          <div class="pol-item"><span>PM10 Coarse Dust</span><strong id="polPm10">-- µg/m³</strong></div>
-          <div class="pol-item"><span>Carbon Monoxide (CO)</span><strong id="polCo">-- µg/m³</strong></div>
-          <div class="pol-item"><span>Nitrogen Dioxide (NO₂)</span><strong id="polNo2">-- µg/m³</strong></div>
-          <div class="pol-item"><span>Sulphur Dioxide (SO₂)</span><strong id="polSo2">-- µg/m³</strong></div>
-          <div class="pol-item"><span>Ground Ozone (O₃)</span><strong id="polO3">-- µg/m³</strong></div>
+
+        <div class="kpi-grid">
+          <div class="kpi-box">
+            <span class="kpi-lbl">Node Temperature (Field 2)</span>
+            <div class="kpi-val" id="kpiTemp">-- °C</div>
+            <span class="kpi-foot" id="kpiTempRange">Min -- / Max --</span>
+          </div>
+
+          <div class="kpi-box">
+            <span class="kpi-lbl">Node Humidity (Field 3)</span>
+            <div class="kpi-val" id="kpiHum">-- %</div>
+            <span class="kpi-foot" id="kpiHumRange">Min -- / Max --</span>
+          </div>
+
+          <div class="kpi-box">
+            <span class="kpi-lbl">Live Pune CAMS AQI</span>
+            <div class="kpi-val" id="kpiCamsAqi">--</div>
+            <span class="kpi-foot" id="kpiVariance">Variance vs Node: --</span>
+          </div>
+
+          <div class="kpi-box">
+            <span class="kpi-lbl">Session Average AQI</span>
+            <div class="kpi-val" id="kpiAvg">--</div>
+            <span class="kpi-foot">ThingSpeak mean index</span>
+          </div>
+
+          <div class="kpi-box">
+            <span class="kpi-lbl">Peak AQI Recorded</span>
+            <div class="kpi-val" id="kpiMax">--</div>
+            <span class="kpi-foot" id="kpiMinFoot">Lowest: --</span>
+          </div>
+
+          <div class="kpi-box">
+            <span class="kpi-lbl">Threshold Exceedances</span>
+            <div class="kpi-val" id="kpiSpikes" style="color:var(--bad);">0</div>
+            <span class="kpi-foot">Readings above 150 AQI</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ========================================================= -->
-    <!-- TAB 2: WOKWI HARDWARE & CIRCUIT TWIN                      -->
-    <!-- ========================================================= -->
-    <div id="page-hardware" class="page">
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-header">
-          <h3 class="card-title">Digital Twin — Live Virtual ESP32 State Mirror</h3>
-          <span class="sub-text">Mirrors exact hardware pins &amp; OLED output from Wokwi</span>
+    <!-- REAL-TIME PUNE CAMS ATMOSPHERIC PANEL -->
+    <div class="card cams-card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title" id="camsHeader">Real-Time Pune Atmospheric Composition — Shivajinagar (Open-Meteo CAMS)</h3>
         </div>
+        <span style="font-size:12px; color:var(--muted);" id="camsSyncTime">Copernicus Atmosphere Monitoring Service (CAMS)</span>
+      </div>
 
-        <div class="hw-stage">
+      <div class="cams-grid">
+        <div class="cams-item">
+          <span>US AQI (Live)</span>
+          <strong id="camsAqiBox">--</strong>
+          <small id="camsCatBox">Syncing...</small>
+        </div>
+        <div class="cams-item">
+          <span>PM2.5 Fine</span>
+          <strong id="camsPm25">--</strong>
+          <small>µg/m³ (EPA 24h: 35)</small>
+        </div>
+        <div class="cams-item">
+          <span>PM10 Coarse</span>
+          <strong id="camsPm10">--</strong>
+          <small>µg/m³ (EPA 24h: 150)</small>
+        </div>
+        <div class="cams-item">
+          <span>Carbon Monoxide</span>
+          <strong id="camsCo">--</strong>
+          <small>µg/m³ (CO)</small>
+        </div>
+        <div class="cams-item">
+          <span>Nitrogen Dioxide</span>
+          <strong id="camsNo2">--</strong>
+          <small>µg/m³ (NO₂)</small>
+        </div>
+        <div class="cams-item">
+          <span>Sulphur Dioxide</span>
+          <strong id="camsSo2">--</strong>
+          <small>µg/m³ (SO₂)</small>
+        </div>
+        <div class="cams-item">
+          <span>Ground Ozone</span>
+          <strong id="camsO3">--</strong>
+          <small>µg/m³ (O₃)</small>
+        </div>
+        <div class="cams-item">
+          <span>Outdoor Weather</span>
+          <strong id="camsWeather">--</strong>
+          <small id="camsCoords">18.53°N, 73.85°E</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CHARTS ROW -->
+    <div class="charts-grid">
+      <div class="card">
+        <div class="card-head">
           <div>
-            <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">SSD1306 128×64 I2C OLED DISPLAY (0x3C)</div>
-            <div class="oled-screen">
-              <div>SIM vs REAL-TIME AQI</div>
-              <div style="border-bottom:1px dashed #334155; margin:4px 0;"></div>
-              <div id="oledLine1">Sim AQI : --</div>
-              <div id="oledLine2">Pune AQI: --</div>
-              <div id="oledLine3">Temp:--C Hum:--%</div>
-              <div id="oledLine4" style="margin-top:4px; color:#4ade80;">STATUS: NORMAL</div>
-            </div>
+            <h3 class="card-title">Multi-Parameter Telemetry Timeline (Node vs. Pune CAMS)</h3>
           </div>
-
-          <div style="display:flex; flex-direction:column; gap:12px;">
-            <div style="font-size:12px; color:#94a3b8;">ACTUATOR &amp; THRESHOLD STATE (AQI &gt; 150)</div>
-            <div class="led-indicator">
-              <div id="twinLed" class="led-bulb"></div>
-              <span id="twinLedText">GPIO 2 Red Warning LED: OFF</span>
-            </div>
-            <div class="led-indicator">
-              <div id="twinBuzzer" class="led-bulb"></div>
-              <span id="twinBuzzerText">GPIO 4 Piezo Buzzer (1kHz): SILENT</span>
-            </div>
-            <div id="sandboxSliderBox" style="display:none; background:#1e293b; padding:12px; border-radius:8px; margin-top:4px;">
-              <label style="font-size:12px; display:block; margin-bottom:6px;">Sandbox Gas Sensor Slider (GPIO 34): <strong id="sliderReadout">120</strong> AQI</label>
-              <input type="range" min="20" max="500" value="120" style="width:100%;" oninput="pushSandboxReading(this.value)" />
-            </div>
+          <div class="toggles">
+            <label><input type="checkbox" id="tAqi" checked onchange="toggleSeries()" /> Node AQI</label>
+            <label><input type="checkbox" id="tCams" checked onchange="toggleSeries()" /> Pune CAMS AQI</label>
+            <label><input type="checkbox" id="tTemp" checked onchange="toggleSeries()" /> Temp (°C)</label>
+            <label><input type="checkbox" id="tHum" onchange="toggleSeries()" /> Humidity (%)</label>
           </div>
         </div>
+        <canvas id="timelineChart" height="125"></canvas>
       </div>
 
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">ESP32-DevKitC-v4 Hardware Pinout &amp; Component Matrix</h3>
+      <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="card-head">
+          <h3 class="card-title">Air Quality Distribution</h3>
         </div>
+        <div style="max-width:230px; margin:auto;">
+          <canvas id="distChart"></canvas>
+        </div>
+        <div style="font-size:12px; color:var(--muted); text-align:center; margin-top:10px;">
+          Breakdown of ThingSpeak readings across EPA AQI health categories
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORICAL DATA TABLE -->
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title">ThingSpeak Cloud Feed Log</h3>
+        <span style="font-size:12px; color:var(--muted);">Latest entries first</span>
+      </div>
+      <div style="overflow-x:auto;">
         <table>
           <thead>
             <tr>
-              <th>Component</th>
-              <th>Model / Part ID</th>
-              <th>ESP32 Pin</th>
-              <th>Protocol / Signal</th>
-              <th>Function in System</th>
+              <th>Entry ID</th>
+              <th>Timestamp</th>
+              <th>Node AQI (Field 1)</th>
+              <th>Pune CAMS AQI</th>
+              <th>Temperature (Field 2)</th>
+              <th>Humidity (Field 3)</th>
+              <th>Category</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td><strong>Microcontroller</strong></td>
-              <td>ESP32-DevKitC-v4</td>
-              <td>3V3 / GND / Wi-Fi</td>
-              <td>IEEE 802.11 b/g/n</td>
-              <td>Edge processing, HTTP REST client, threshold logic</td>
-            </tr>
-            <tr>
-              <td><strong>Gas / Air Sensor</strong></td>
-              <td>MQ-135 Equivalent (Analog)</td>
-              <td>GPIO 34 (ADC1_CH6)</td>
-              <td>12-bit Analog (0–4095)</td>
-              <td>Measures air contaminants mapped to 20–500 AQI scale</td>
-            </tr>
-            <tr>
-              <td><strong>Temp &amp; Humidity</strong></td>
-              <td>DHT22 (AM2302)</td>
-              <td>GPIO 15</td>
-              <td>1-Wire Digital</td>
-              <td>Captures ambient temperature (°C) &amp; relative humidity (%)</td>
-            </tr>
-            <tr>
-              <td><strong>Local Display</strong></td>
-              <td>SSD1306 OLED (128×64)</td>
-              <td>GPIO 21 (SDA), GPIO 22 (SCL)</td>
-              <td>I2C (Addr 0x3C)</td>
-              <td>Displays side-by-side simulated vs. real-time city AQI</td>
-            </tr>
-            <tr>
-              <td><strong>Visual Alarm</strong></td>
-              <td>5mm Red LED + 220Ω Resistor</td>
-              <td>GPIO 2</td>
-              <td>Digital Output (HIGH/LOW)</td>
-              <td>Illuminates immediately when AQI exceeds 150</td>
-            </tr>
-            <tr>
-              <td><strong>Audio Alarm</strong></td>
-              <td>Piezo Buzzer</td>
-              <td>GPIO 4</td>
-              <td>PWM Tone (1000 Hz)</td>
-              <td>Emits audible alert pulse during hazardous spikes</td>
-            </tr>
+          <tbody id="logBody">
+            <tr><td colspan="7" style="text-align:center; color:var(--muted);">No ThingSpeak data loaded yet.</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- ========================================================= -->
-    <!-- TAB 3: CLOUD API & PACKET INSPECTOR                       -->
-    <!-- ========================================================= -->
-    <div id="page-cloud" class="page">
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">ThingSpeak Channel Schema &amp; REST Endpoints</h3>
-          </div>
-          <table>
-            <thead>
-              <tr><th>ThingSpeak Field</th><th>Parameter</th><th>Unit</th><th>Source</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><strong>Field 1</strong></td><td>Simulated AQI</td><td>Index (20–500)</td><td>Wokwi Gas Sensor (GPIO 34)</td></tr>
-              <tr><td><strong>Field 2</strong></td><td>Temperature</td><td>Celsius (°C)</td><td>Wokwi DHT22 (GPIO 15)</td></tr>
-              <tr><td><strong>Field 3</strong></td><td>Humidity</td><td>Percentage (%)</td><td>Wokwi DHT22 (GPIO 15)</td></tr>
-              <tr><td><strong>Field 4</strong></td><td>Real-Time City AQI</td><td>US AQI</td><td>Open-Meteo API via ESP32</td></tr>
-            </tbody>
-          </table>
-          <div style="margin-top:16px; font-size:12.5px; color:var(--muted);">
-            <strong>Active Read Endpoint:</strong>
-            <div id="activeUrlDisplay" style="background:var(--surface-alt); padding:8px 10px; border-radius:6px; margin-top:6px; font-family:monospace; word-break:break-all;">--</div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Live Raw JSON Telemetry Payload (Latest Packet)</h3>
-            <span class="pill" style="background:var(--good-bg); color:var(--good);">HTTP 200 OK</span>
-          </div>
-          <pre id="rawJsonBox">{ "status": "Waiting for first ThingSpeak packet..." }</pre>
-        </div>
-      </div>
-    </div>
-
-    <!-- ========================================================= -->
-    <!-- TAB 4: ANALYTICS & EXPORTABLE LOGS                        -->
-    <!-- ========================================================= -->
-    <div id="page-logs" class="page">
-      <div class="grid-4">
-        <div class="card"><div class="card-title">Minimum AQI</div><div class="big-num" id="statMin">--</div></div>
-        <div class="card"><div class="card-title">Average AQI</div><div class="big-num" id="statAvg">--</div></div>
-        <div class="card"><div class="card-title">Peak AQI Recorded</div><div class="big-num" id="statMax">--</div></div>
-        <div class="card"><div class="card-title">Hazardous Spikes (&gt;150)</div><div class="big-num" id="statSpikes" style="color:var(--bad);">--</div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Ingested Cloud Telemetry History (Last 25 Packets)</h3>
-          <div style="display:flex; gap:8px;">
-            <button class="btn btn-outline" onclick="exportCSV()">Download CSV Report</button>
-            <button class="btn btn-outline" onclick="exportJSON()">Download JSON</button>
-          </div>
-        </div>
-        <div style="overflow-x:auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>Entry ID</th>
-                <th>Timestamp (Local)</th>
-                <th>Sim AQI (Field 1)</th>
-                <th>Temp °C (Field 2)</th>
-                <th>Humidity % (Field 3)</th>
-                <th>Real City AQI (Field 4)</th>
-                <th>Alert Status</th>
-              </tr>
-            </thead>
-            <tbody id="logTableBody">
-              <tr><td colspan="7" style="text-align:center; color:var(--muted);">No packets loaded yet. Connect your ThingSpeak Channel ID above or enable Sandbox Mode.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-  </div>
+  </main>
 
   <script>
     // =========================================================================
-    // DEFAULT CONFIGURATION (Replace with your ThingSpeak Channel ID & Read Key)
+    // ENTER YOUR THINGSPEAK CHANNEL ID & READ API KEY HERE (OR IN HEADER BAR)
     // =========================================================================
     const DEFAULT_CHANNEL_ID = "YOUR_CHANNEL_ID";
     const DEFAULT_READ_KEY   = "YOUR_READ_API_KEY";
 
-    let channelId = localStorage.getItem("ts_channel_id") || DEFAULT_CHANNEL_ID;
-    let readKey   = localStorage.getItem("ts_read_key")   || DEFAULT_READ_KEY;
+    let channelId = localStorage.getItem("ts_viz_channel") || DEFAULT_CHANNEL_ID;
+    let readKey   = localStorage.getItem("ts_viz_key")     || DEFAULT_READ_KEY;
     let feeds     = [];
-    let realTimeData = { aqi: null, pm25: null, pm10: null, co: null, no2: null, so2: null, o3: null, temp: null, hum: null };
-    let demoInterval = null;
+    let camsData  = { aqi: null, pm25: null, pm10: null, co: null, no2: null, so2: null, o3: null, temp: null, hum: null };
 
-    document.getElementById("cfgChannel").value = channelId !== "YOUR_CHANNEL_ID" ? channelId : "";
-    document.getElementById("cfgReadKey").value = readKey !== "YOUR_READ_API_KEY" ? readKey : "";
+    document.getElementById("inChannel").value = channelId !== "YOUR_CHANNEL_ID" ? channelId : "";
+    document.getElementById("inKey").value     = readKey   !== "YOUR_READ_API_KEY" ? readKey   : "";
 
-    // Initialize Charts
-    const aqiChart = new Chart(document.getElementById("aqiTrendChart").getContext("2d"), {
-      type: "line",
+    // 1. Half-Doughnut Gauge Chart
+    const gaugeChart = new Chart(document.getElementById("aqiGauge").getContext("2d"), {
+      type: "doughnut",
       data: {
-        labels: [],
-        datasets: [
-          { label: "Simulated ESP32 AQI", data: [], borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,0.08)", borderWidth: 2.5, tension: 0.3, fill: true },
-          { label: "Real-Time City Benchmark", data: [], borderColor: "#16a34a", borderDash: [6, 4], borderWidth: 2, tension: 0.2, pointRadius: 0 }
-        ]
+        datasets: [{
+          data: [0, 500],
+          backgroundColor: ["#16a34a", "#e2e8f0"],
+          borderWidth: 0,
+          circumference: 180,
+          rotation: 270,
+          cutout: "78%"
+        }]
       },
-      options: { responsive: true, plugins: { legend: { position: "top" } }, scales: { y: { beginAtZero: true, max: 500 } } }
-    });
-
-    const envChart = new Chart(document.getElementById("envTrendChart").getContext("2d"), {
-      type: "line",
-      data: {
-        labels: [],
-        datasets: [
-          { label: "Temperature (°C)", data: [], borderColor: "#f59e0b", borderWidth: 2, tension: 0.3 },
-          { label: "Humidity (%)", data: [], borderColor: "#06b6d4", borderWidth: 2, tension: 0.3 }
-        ]
-      },
-      options: { responsive: true, plugins: { legend: { position: "top" } }, scales: { y: { beginAtZero: true, max: 100 } } }
-    });
-
-    function switchTab(tabName, el) {
-      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-      document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-      el.classList.add("active");
-      document.getElementById("page-" + tabName).classList.add("active");
-    }
-
-    function applyConfig() {
-      const c = document.getElementById("cfgChannel").value.trim();
-      const k = document.getElementById("cfgReadKey").value.trim();
-      if (c) {
-        channelId = c;
-        readKey = k;
-        localStorage.setItem("ts_channel_id", channelId);
-        localStorage.setItem("ts_read_key", readKey);
-        document.getElementById("demoToggle").checked = false;
-        toggleDemoMode();
-        fetchThingSpeak();
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } }
       }
+    });
+
+    // 2. Multi-Axis Timeline Chart
+    const timelineChart = new Chart(document.getElementById("timelineChart").getContext("2d"), {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Node AQI (ThingSpeak)",
+            data: [],
+            borderColor: "#0f172a",
+            backgroundColor: "rgba(15, 23, 42, 0.06)",
+            borderWidth: 2.2,
+            pointRadius: 2.5,
+            tension: 0.3,
+            fill: true,
+            yAxisID: "y"
+          },
+          {
+            label: "Pune CAMS AQI (Live)",
+            data: [],
+            borderColor: "#16a34a",
+            borderDash: [6, 4],
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.2,
+            yAxisID: "y"
+          },
+          {
+            label: "Temp (°C)",
+            data: [],
+            borderColor: "#ea580c",
+            borderWidth: 2,
+            pointRadius: 2,
+            tension: 0.3,
+            yAxisID: "y1"
+          },
+          {
+            label: "Humidity (%)",
+            data: [],
+            borderColor: "#0284c7",
+            borderWidth: 2,
+            pointRadius: 2,
+            tension: 0.3,
+            hidden: true,
+            yAxisID: "y1"
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { position: "top", labels: { usePointStyle: true, boxWidth: 8 } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: "#64748b", font: { size: 11 } } },
+          y: {
+            type: "linear", position: "left", beginAtZero: true, max: 500,
+            title: { display: true, text: "AQI", color: "#64748b", font: { size: 11 } },
+            grid: { color: "#f1f5f9" }
+          },
+          y1: {
+            type: "linear", position: "right", beginAtZero: true, max: 100,
+            title: { display: true, text: "Temp / Humidity", color: "#64748b", font: { size: 11 } },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+
+    // 3. Distribution Doughnut Chart
+    const distChart = new Chart(document.getElementById("distChart").getContext("2d"), {
+      type: "doughnut",
+      data: {
+        labels: ["Good (0-50)", "Moderate (51-100)", "Sensitive (101-150)", "Hazardous (>150)"],
+        datasets: [{
+          data: [0, 0, 0, 0],
+          backgroundColor: ["#16a34a", "#eab308", "#f97316", "#dc2626"],
+          borderWidth: 2,
+          borderColor: "#ffffff"
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: "62%",
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } }
+      }
+    });
+
+    function getCategory(aqi) {
+      if (aqi <= 50)  return { label: "Good", color: "#16a34a", bg: "var(--good-bg)", fg: "var(--good)", tip: "Air quality is clean and poses minimal health risk." };
+      if (aqi <= 100) return { label: "Moderate", color: "#d97706", bg: "var(--mod-bg)", fg: "var(--mod)", tip: "Acceptable air quality; unusually sensitive individuals should limit prolonged exertion." };
+      if (aqi <= 150) return { label: "Unhealthy (Sensitive)", color: "#ea580c", bg: "var(--sens-bg)", fg: "var(--sens)", tip: "Sensitive groups may experience health effects; reduce prolonged outdoor activity." };
+      return { label: "Hazardous", color: "#dc2626", bg: "var(--bad-bg)", fg: "var(--bad)", tip: "Health warning: elevated pollutant concentration detected. Threshold alert active." };
     }
 
-    function getAqiCategory(aqi) {
-      if (aqi <= 50)  return { label: "Good", color: "var(--good)" };
-      if (aqi <= 100) return { label: "Moderate", color: "var(--mod)" };
-      if (aqi <= 150) return { label: "Sensitive Groups", color: "#ea580c" };
-      if (aqi <= 300) return { label: "Unhealthy / Hazardous", color: "var(--bad)" };
-      return { label: "Severe Emergency", color: "#991b1b" };
+    function connectChannel() {
+      const id = document.getElementById("inChannel").value.trim();
+      const key = document.getElementById("inKey").value.trim();
+      if (!id) return;
+      channelId = id;
+      readKey = key;
+      localStorage.setItem("ts_viz_channel", channelId);
+      localStorage.setItem("ts_viz_key", readKey);
+      fetchThingSpeak();
     }
 
-    // Fetch Real-Time Atmospheric & Weather Data (Open-Meteo)
-    async function fetchRealTimeData() {
-      const [lat, lon, city] = document.getElementById("citySelect").value.split(",");
-      document.getElementById("realCityLabel").textContent = `Real-Time ${city} AQI`;
+    function toggleSeries() {
+      timelineChart.data.datasets[0].hidden = !document.getElementById("tAqi").checked;
+      timelineChart.data.datasets[1].hidden = !document.getElementById("tCams").checked;
+      timelineChart.data.datasets[2].hidden = !document.getElementById("tTemp").checked;
+      timelineChart.data.datasets[3].hidden = !document.getElementById("tHum").checked;
+      timelineChart.update();
+    }
+
+    // Fetch Real-Time Pune CAMS Data (Open-Meteo)
+    async function fetchPuneCAMS() {
+      const [lat, lon, zoneName] = document.getElementById("inZone").value.split(",");
+      document.getElementById("camsHeader").textContent = `Real-Time Pune Atmospheric Composition — ${zoneName} (Open-Meteo CAMS)`;
+      document.getElementById("camsCoords").textContent = `${Number(lat).toFixed(2)}°N, ${Number(lon).toFixed(2)}°E`;
 
       try {
         const [aqRes, wxRes] = await Promise.all([
@@ -493,206 +535,175 @@
         const aq = await aqRes.json();
         const wx = await wxRes.json();
 
-        realTimeData = {
+        camsData = {
           aqi: Math.round(aq.current.us_aqi),
-          pm25: aq.current.pm2_5,
-          pm10: aq.current.pm10,
-          co: aq.current.carbon_monoxide,
-          no2: aq.current.nitrogen_dioxide,
-          so2: aq.current.sulphur_dioxide,
-          o3: aq.current.ozone,
-          temp: wx.current.temperature_2m,
-          hum: wx.current.relative_humidity_2m
+          pm25: aq.current.pm2_5.toFixed(1),
+          pm10: Math.round(aq.current.pm10),
+          co: Math.round(aq.current.carbon_monoxide),
+          no2: aq.current.nitrogen_dioxide.toFixed(1),
+          so2: aq.current.sulphur_dioxide.toFixed(1),
+          o3: Math.round(aq.current.ozone),
+          temp: wx.current.temperature_2m.toFixed(1),
+          hum: Math.round(wx.current.relative_humidity_2m)
         };
 
-        document.getElementById("kpiRealAqi").textContent = realTimeData.aqi;
-        document.getElementById("kpiRealAqi").style.color = getAqiCategory(realTimeData.aqi).color;
-        document.getElementById("kpiRealPm").textContent = `PM2.5: ${realTimeData.pm25} µg/m³ | PM10: ${realTimeData.pm10} µg/m³`;
-        document.getElementById("kpiRealTemp").textContent = `Real Outdoor Temp: ${realTimeData.temp} °C`;
-        document.getElementById("kpiRealHum").textContent = `Real Outdoor Humidity: ${realTimeData.hum} %`;
+        const cMeta = getCategory(camsData.aqi);
+        document.getElementById("camsAqiBox").textContent = camsData.aqi;
+        document.getElementById("camsAqiBox").style.color = cMeta.color;
+        document.getElementById("camsCatBox").textContent = cMeta.label;
+        document.getElementById("camsPm25").textContent = camsData.pm25;
+        document.getElementById("camsPm10").textContent = camsData.pm10;
+        document.getElementById("camsCo").textContent   = camsData.co;
+        document.getElementById("camsNo2").textContent  = camsData.no2;
+        document.getElementById("camsSo2").textContent  = camsData.so2;
+        document.getElementById("camsO3").textContent   = camsData.o3;
+        document.getElementById("camsWeather").textContent = `${camsData.temp}°C / ${camsData.hum}%`;
 
-        document.getElementById("polPm25").textContent = `${realTimeData.pm25} µg/m³`;
-        document.getElementById("polPm10").textContent = `${realTimeData.pm10} µg/m³`;
-        document.getElementById("polCo").textContent   = `${realTimeData.co} µg/m³`;
-        document.getElementById("polNo2").textContent  = `${realTimeData.no2} µg/m³`;
-        document.getElementById("polSo2").textContent  = `${realTimeData.so2} µg/m³`;
-        document.getElementById("polO3").textContent   = `${realTimeData.o3} µg/m³`;
-        document.getElementById("aqTimestamp").textContent = `Station Grid: ${lat}°N, ${lon}°E | Synced ${new Date().toLocaleTimeString()}`;
+        document.getElementById("kpiCamsAqi").textContent = camsData.aqi;
+        document.getElementById("kpiCamsAqi").style.color = cMeta.color;
+        document.getElementById("camsSyncTime").textContent = `CAMS Live • Synced ${new Date().toLocaleTimeString()}`;
 
         renderDashboard();
       } catch (err) {
-        console.error("Open-Meteo Error:", err);
+        console.error("Pune CAMS fetch error:", err);
       }
     }
 
-    // Fetch Live Telemetry from ThingSpeak Cloud
+    // Fetch ThingSpeak Channel Data
     async function fetchThingSpeak() {
-      if (document.getElementById("demoToggle").checked) return;
-      if (!channelId || channelId === "YOUR_CHANNEL_ID") {
-        setStatusBadge("Enter ThingSpeak Channel ID above (or enable Sandbox Mode)", "var(--mod)", "var(--mod-bg)");
-        return;
-      }
+      if (!channelId || channelId === "YOUR_CHANNEL_ID") return;
 
-      const keyQuery = (readKey && readKey !== "YOUR_READ_API_KEY") ? `&api_key=${readKey}` : "";
-      const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?results=25${keyQuery}`;
-      document.getElementById("activeUrlDisplay").textContent = url.replace(readKey, "••••••••••••");
+      const results = document.getElementById("inResults").value;
+      const keyParam = (readKey && readKey !== "YOUR_READ_API_KEY") ? `&api_key=${readKey}` : "";
+      const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?results=${results}${keyParam}`;
 
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        feeds = json.feeds || [];
+        const data = await res.json();
 
-        setStatusBadge(`Connected to ThingSpeak #${channelId} (${feeds.length} packets)`, "var(--good)", "var(--good-bg)");
-        document.getElementById("lastSyncText").textContent = `Last Cloud Sync: ${new Date().toLocaleTimeString()}`;
+        if (data.channel && data.channel.name) {
+          document.getElementById("channelTitle").textContent = `${data.channel.name} (Channel #${data.channel.id}) + Pune CAMS`;
+        }
+
+        feeds = data.feeds || [];
+        const badge = document.getElementById("connBadge");
+        badge.innerHTML = `<span class="dot"></span> Connected • Channel #${channelId}`;
+        badge.style.background = "var(--good-bg)";
+        badge.style.color = "var(--good)";
+        document.getElementById("lastUpdate").textContent = `Last synced: ${new Date().toLocaleTimeString()}`;
+
         renderDashboard();
       } catch (err) {
-        setStatusBadge(`ThingSpeak Connection Error (${err.message})`, "var(--bad)", "var(--bad-bg)");
+        const badge = document.getElementById("connBadge");
+        badge.innerHTML = `<span class="dot"></span> Sync Error (${err.message})`;
+        badge.style.background = "var(--bad-bg)";
+        badge.style.color = "var(--bad)";
       }
     }
 
-    function setStatusBadge(text, color, bg) {
-      const el = document.getElementById("cloudBadge");
-      el.innerHTML = `<span class="dot"></span> ${text}`;
-      el.style.color = color;
-      el.style.background = bg;
-    }
-
-    // Interactive Sandbox Mode (for instant slider testing without 15s wait)
-    function toggleDemoMode() {
-      const isDemo = document.getElementById("demoToggle").checked;
-      document.getElementById("sandboxSliderBox").style.display = isDemo ? "block" : "none";
-      if (isDemo) {
-        setStatusBadge("Interactive Sandbox Mode Active (Live Browser Simulation)", "var(--primary)", "var(--primary-light)");
-        if (!feeds.length) pushSandboxReading(115);
-      } else {
-        fetchThingSpeak();
-      }
-    }
-
-    function pushSandboxReading(val) {
-      const aqi = parseInt(val, 10);
-      document.getElementById("sliderReadout").textContent = aqi;
-      const now = new Date().toISOString();
-      feeds.push({
-        entry_id: feeds.length + 1,
-        created_at: now,
-        field1: String(aqi),
-        field2: (24.5 + Math.random() * 2).toFixed(1),
-        field3: (48 + Math.random() * 6).toFixed(0),
-        field4: realTimeData.aqi ? String(realTimeData.aqi) : "68"
-      });
-      if (feeds.length > 25) feeds.shift();
-      renderDashboard();
-    }
-
-    // Render All UI Components, Digital Twin, Charts, and Logs
     function renderDashboard() {
       if (!feeds.length) return;
-      const latest = feeds[feeds.length - 1];
-      const aqi = parseInt(latest.field1 || 0, 10);
-      const temp = parseFloat(latest.field2 || 0).toFixed(1);
-      const hum = parseFloat(latest.field3 || 0).toFixed(0);
-      const cat = getAqiCategory(aqi);
-      const isAlert = aqi > 150;
 
-      // KPIs
-      const kpiAqi = document.getElementById("kpiSimAqi");
-      kpiAqi.textContent = aqi;
-      kpiAqi.style.color = cat.color;
-      document.getElementById("kpiSimStatus").textContent = `Category: ${cat.label}`;
-      document.getElementById("aqiMarker").style.left = `${Math.min(100, Math.max(0, (aqi / 500) * 100))}%`;
+      const aqiArr  = feeds.map(f => parseInt(f.field1 || 0, 10));
+      const tempArr = feeds.map(f => parseFloat(f.field2 || 0));
+      const humArr  = feeds.map(f => parseFloat(f.field3 || 0));
 
-      document.getElementById("kpiTemp").textContent = `${temp} °C`;
-      document.getElementById("kpiHum").textContent  = `${hum} %`;
+      const latestAqi  = aqiArr[aqiArr.length - 1];
+      const prevAqi    = aqiArr.length > 1 ? aqiArr[aqiArr.length - 2] : latestAqi;
+      const delta      = latestAqi - prevAqi;
+      const latestTemp = tempArr[tempArr.length - 1].toFixed(1);
+      const latestHum  = Math.round(humArr[humArr.length - 1]);
+      const cat        = getCategory(latestAqi);
 
-      if (realTimeData.aqi !== null) {
-        const diff = aqi - realTimeData.aqi;
-        document.getElementById("kpiDelta").textContent = `Variance vs Real City: ${diff >= 0 ? "+" : ""}${diff} AQI`;
-      }
+      // Update Gauge
+      document.getElementById("gaugeVal").textContent = latestAqi;
+      document.getElementById("gaugeVal").style.color = cat.color;
+      document.getElementById("gaugeDelta").textContent = `${delta >= 0 ? "+" : ""}${delta} vs previous`;
+      document.getElementById("advisoryText").textContent = cat.tip;
+
+      const pill = document.getElementById("catPill");
+      pill.textContent = cat.label;
+      pill.style.background = cat.bg;
+      pill.style.color = cat.fg;
+
+      gaugeChart.data.datasets[0].data = [Math.min(500, latestAqi), Math.max(0, 500 - latestAqi)];
+      gaugeChart.data.datasets[0].backgroundColor = [cat.color, "#e2e8f0"];
+      gaugeChart.update();
 
       // Alert Banner
-      const banner = document.getElementById("alertBanner");
-      banner.style.display = isAlert ? "flex" : "none";
-      document.getElementById("alertValTag").textContent = `AQI: ${aqi}`;
+      const alertEl = document.getElementById("alertBanner");
+      alertEl.style.display = latestAqi > 150 ? "flex" : "none";
+      document.getElementById("alertScore").textContent = `AQI: ${latestAqi}`;
 
-      // Digital Twin OLED & Actuators
-      document.getElementById("oledLine1").textContent = `Sim AQI : ${aqi} ${isAlert ? "[!]" : ""}`;
-      document.getElementById("oledLine2").textContent = `Pune AQI: ${realTimeData.aqi ?? latest.field4 ?? "--"}`;
-      document.getElementById("oledLine3").textContent = `Temp:${temp}C Hum:${hum}%`;
-      const oledStatus = document.getElementById("oledLine4");
-      oledStatus.textContent = isAlert ? "STATUS: SIM ALERT!" : "STATUS: NORMAL";
-      oledStatus.style.color = isAlert ? "#f87171" : "#4ade80";
+      // KPI Stats
+      document.getElementById("sampleCount").textContent = `${feeds.length} samples`;
+      document.getElementById("kpiTemp").textContent = `${latestTemp} °C`;
+      document.getElementById("kpiTempRange").textContent = `Min ${Math.min(...tempArr).toFixed(1)}° / Max ${Math.max(...tempArr).toFixed(1)}°`;
 
-      document.getElementById("twinLed").className = isAlert ? "led-bulb on" : "led-bulb";
-      document.getElementById("twinLedText").textContent = `GPIO 2 Red Warning LED: ${isAlert ? "ON (HIGH)" : "OFF (LOW)"}`;
-      document.getElementById("twinBuzzer").className = isAlert ? "led-bulb on" : "led-bulb";
-      document.getElementById("twinBuzzerText").textContent = `GPIO 4 Piezo Buzzer (1kHz): ${isAlert ? "ACTIVE BEEPING" : "SILENT"}`;
+      document.getElementById("kpiHum").textContent = `${latestHum} %`;
+      document.getElementById("kpiHumRange").textContent = `Min ${Math.round(Math.min(...humArr))}% / Max ${Math.round(Math.max(...humArr))}%`;
 
-      // Raw JSON Inspector
-      document.getElementById("rawJsonBox").textContent = JSON.stringify(latest, null, 2);
+      if (camsData.aqi !== null) {
+        const diff = latestAqi - camsData.aqi;
+        document.getElementById("kpiVariance").textContent = `Variance vs Node: ${diff >= 0 ? "+" : ""}${diff} AQI`;
+      }
 
-      // Update Charts
-      const labels = feeds.map(f => new Date(f.created_at).toLocaleTimeString());
-      const aqiSeries = feeds.map(f => Number(f.field1));
-      aqiChart.data.labels = labels;
-      aqiChart.data.datasets[0].data = aqiSeries;
-      aqiChart.data.datasets[1].data = feeds.map(f => realTimeData.aqi ?? Number(f.field4 || 0));
-      aqiChart.update("none");
+      document.getElementById("kpiAvg").textContent = Math.round(aqiArr.reduce((a, b) => a + b, 0) / aqiArr.length);
+      document.getElementById("kpiMax").textContent = Math.max(...aqiArr);
+      document.getElementById("kpiMinFoot").textContent = `Lowest: ${Math.min(...aqiArr)}`;
+      document.getElementById("kpiSpikes").textContent = aqiArr.filter(v => v > 150).length;
 
-      envChart.data.labels = labels;
-      envChart.data.datasets[0].data = feeds.map(f => Number(f.field2));
-      envChart.data.datasets[1].data = feeds.map(f => Number(f.field3));
-      envChart.update("none");
+      // Timeline Chart
+      timelineChart.data.labels = feeds.map(f => new Date(f.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      timelineChart.data.datasets[0].data = aqiArr;
+      timelineChart.data.datasets[1].data = feeds.map(() => camsData.aqi);
+      timelineChart.data.datasets[2].data = tempArr;
+      timelineChart.data.datasets[3].data = humArr;
+      timelineChart.update("none");
 
-      // Analytics Stats & Table
-      document.getElementById("statMin").textContent = Math.min(...aqiSeries);
-      document.getElementById("statMax").textContent = Math.max(...aqiSeries);
-      document.getElementById("statAvg").textContent = Math.round(aqiSeries.reduce((a, b) => a + b, 0) / aqiSeries.length);
-      document.getElementById("statSpikes").textContent = aqiSeries.filter(v => v > 150).length;
+      // Distribution Chart
+      const counts = [0, 0, 0, 0];
+      aqiArr.forEach(v => {
+        if (v <= 50) counts[0]++;
+        else if (v <= 100) counts[1]++;
+        else if (v <= 150) counts[2]++;
+        else counts[3]++;
+      });
+      distChart.data.datasets[0].data = counts;
+      distChart.update();
 
-      const tbody = document.getElementById("logTableBody");
-      tbody.innerHTML = [...feeds].reverse().map(f => {
+      // Table Logs
+      document.getElementById("logBody").innerHTML = [...feeds].reverse().map(f => {
         const val = parseInt(f.field1 || 0, 10);
-        const badge = val > 150
-          ? `<span class="pill" style="background:var(--bad-bg); color:var(--bad);">HAZARDOUS</span>`
-          : `<span class="pill" style="background:var(--good-bg); color:var(--good);">NORMAL</span>`;
+        const c = getCategory(val);
         return `<tr>
           <td>#${f.entry_id}</td>
           <td>${new Date(f.created_at).toLocaleString()}</td>
           <td><strong>${val}</strong></td>
+          <td>${camsData.aqi ?? "--"}</td>
           <td>${f.field2 ?? "--"} °C</td>
           <td>${f.field3 ?? "--"} %</td>
-          <td>${f.field4 ?? realTimeData.aqi ?? "--"}</td>
-          <td>${badge}</td>
+          <td><span class="badge" style="background:${c.bg}; color:${c.fg};">${c.label}</span></td>
         </tr>`;
       }).join("");
     }
 
     function exportCSV() {
       if (!feeds.length) return;
-      const rows = ["Entry_ID,Timestamp,Simulated_AQI,Temp_C,Humidity_Pct,RealTime_City_AQI"];
-      feeds.forEach(f => rows.push(`${f.entry_id},${f.created_at},${f.field1},${f.field2},${f.field3},${f.field4 ?? realTimeData.aqi ?? ""}`));
-      downloadFile(rows.join("\n"), "aerosense-iot-report.csv", "text/csv");
-    }
-
-    function exportJSON() {
-      if (!feeds.length) return;
-      downloadFile(JSON.stringify(feeds, null, 2), "aerosense-iot-telemetry.json", "application/json");
-    }
-
-    function downloadFile(content, filename, type) {
+      const rows = ["Entry_ID,Timestamp,Node_AQI,Pune_CAMS_AQI,Temperature_C,Humidity_Pct"];
+      feeds.forEach(f => rows.push(`${f.entry_id},${f.created_at},${f.field1},${camsData.aqi ?? ""},${f.field2},${f.field3}`));
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([content], { type }));
-      a.download = filename;
+      a.href = URL.createObjectURL(new Blob([rows.join("\n")], { type: "text/csv" }));
+      a.download = `pune-thingspeak-cams-${channelId}.csv`;
       a.click();
     }
 
-    // Boot Sequence
-    fetchRealTimeData();
+    // Initial Load & Auto-Polling
+    fetchPuneCAMS();
     fetchThingSpeak();
     setInterval(fetchThingSpeak, 15000);
-    setInterval(fetchRealTimeData, 60000);
+    setInterval(fetchPuneCAMS, 60000);
   </script>
 </body>
 </html>
